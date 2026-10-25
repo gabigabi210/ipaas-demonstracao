@@ -1,0 +1,35 @@
+{
+  "name": "venda_confirmada_sync",
+  "trigger": "venda.confirmada",
+  "mode": "sync",
+  "steps": [
+    {
+      "id": "baixa_estoque",
+      "connector": "estoque",
+      "action": "baixar",
+      "foreach": "$.itens",
+      "map": {
+        "sku": "$item.sku",
+        "quantidade": "$item.qtd"
+      }
+    },
+    {
+      "id": "nota_fiscal",
+      "connector": "faturamento",
+      "action": "emitir_nota",
+      "map": {
+        "cliente": {"from": "$.cliente", "transform": "upper"},
+        "valor_total": {"from": "$.total", "transform": "round2"}
+      }
+    },
+    {
+      "id": "avisa_cliente",
+      "connector": "notificacao",
+      "action": "enviar",
+      "map": {
+        "destino": "$.email",
+        "mensagem": "Pedido {$.pedido_id} confirmado. Nota {$steps.nota_fiscal.nota_id}."
+      }
+    }
+  ]
+}

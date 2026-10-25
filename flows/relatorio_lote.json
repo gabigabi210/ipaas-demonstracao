@@ -1,0 +1,16 @@
+{
+  "name": "venda_para_financeiro_lote",
+  "trigger": "venda.confirmada",
+  "mode": "batch",
+  "steps": [
+    {
+      "id": "avisa_financeiro",
+      "connector": "notificacao",
+      "action": "enviar",
+      "map": {
+        "destino": "financeiro@empresa.com",
+        "mensagem": "Venda {$.pedido_id} registrada no fechamento do dia."
+      }
+    }
+  ]
+}

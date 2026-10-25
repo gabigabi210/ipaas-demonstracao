@@ -1,0 +1,162 @@
+{
+  "name": "Venda confirmada (iPaaS demo)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "venda-confirmada",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "venda-confirmada-demo"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.itens",
+        "options": {}
+      },
+      "name": "Separar itens",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://estoque:8001/baixar",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"sku\": $json.sku, \"quantidade\": $json.qtd } }}",
+        "options": {}
+      },
+      "name": "Baixar estoque",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "estoque",
+        "options": {}
+      },
+      "name": "Juntar itens",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://faturamento:8002/emitir_nota",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"cliente\": $('Webhook').first().json.body.cliente.toUpperCase(), \"valor_total\": Math.round($('Webhook').first().json.body.total * 100) / 100 } }}",
+        "options": {}
+      },
+      "name": "Emitir nota fiscal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://notificacao:8003/enviar",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"destino\": $('Webhook').first().json.body.email, \"mensagem\": \"Pedido \" + $('Webhook').first().json.body.pedido_id + \" confirmado. Nota \" + $json.nota_id + \".\" } }}",
+        "options": {}
+      },
+      "name": "Avisar cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Separar itens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar itens": {
+      "main": [
+        [
+          {
+            "node": "Baixar estoque",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar estoque": {
+      "main": [
+        [
+          {
+            "node": "Juntar itens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Juntar itens": {
+      "main": [
+        [
+          {
+            "node": "Emitir nota fiscal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emitir nota fiscal": {
+      "main": [
+        [
+          {
+            "node": "Avisar cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
